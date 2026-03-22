@@ -72,6 +72,10 @@ if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 if "pdf_file_path" not in st.session_state:
     st.session_state.pdf_file_path = ""
+if "premium_unlocked" not in st.session_state:
+    st.session_state.premium_unlocked = False
+if "premium_email" not in st.session_state:
+    st.session_state.premium_email = ""
 
 
 # -----------------------------------------------------------------------------
@@ -93,6 +97,7 @@ if st.button("Run Analysis", type="primary"):
         st.session_state.last_mode = mode
         st.session_state.pdf_ready = False
         st.session_state.pdf_file_path = ""
+        st.session_state.premium_unlocked = False
 
 df = st.session_state.results
 
@@ -386,20 +391,23 @@ for _, row in df.iterrows():
 # Premium report export
 # -----------------------------------------------------------------------------
 
-st.subheader("📄 Export Intelligence Report")
-st.write("""
-Download a professional report with:
-- ranked models
-- production readiness
-- key insights
-- actionable recommendations
+st.subheader("📄 Premium Intelligence Report")
+st.info("""
+🔐 Premium Report includes:
+
+- Top ranked models
+- Production-readiness analysis
+- Family and domain summaries
+- Actionable recommendations
+
+Enter your email to unlock the premium report experience.
 """)
 
 family_summary_df = make_family_summary(df)
 domain_summary_df = make_domain_summary(df)
 report_text = build_full_report(df, st.session_state.last_query, st.session_state.last_mode)
 
-tab1, tab2, tab3 = st.tabs(["Executive Summary", "Summary Tables", "Downloads"])
+tab1, tab2, tab3 = st.tabs(["Executive Summary", "Summary Tables", "Premium Downloads"])
 
 with tab1:
     st.markdown(build_executive_summary(df, st.session_state.last_query, st.session_state.last_mode))
@@ -422,65 +430,83 @@ with tab2:
             st.dataframe(domain_summary_df, use_container_width=True, hide_index=True)
 
 with tab3:
-    st.markdown("### Download premium report artifacts")
+    st.markdown("### Unlock Premium Report")
 
-    if st.button("📄 Generate Premium PDF Report"):
-        file_path = "ml_report.pdf"
-        generate_pdf(st.session_state.results, st.session_state.last_query, file_path)
-        st.session_state.pdf_ready = True
-        st.session_state.pdf_file_path = file_path
-        st.success("PDF report generated successfully.")
-
-    if st.session_state.pdf_ready and st.session_state.pdf_file_path and os.path.exists(st.session_state.pdf_file_path):
-        with open(st.session_state.pdf_file_path, "rb") as f:
-            st.download_button(
-                label="Download PDF Report",
-                data=f,
-                file_name="ML_Report.pdf",
-                mime="application/pdf",
-            )
-
-    report_bytes = report_text.encode("utf-8")
-    st.download_button(
-        label="Download Report (Markdown)",
-        data=report_bytes,
-        file_name=f"ml_repo_intelligence_report_{st.session_state.last_query.replace(' ', '_')}.md",
-        mime="text/markdown",
+    user_email = st.text_input(
+        "Enter your email to unlock premium report",
+        value=st.session_state.premium_email,
+        key="premium_email_input",
     )
 
-    ranked_csv = show_df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download Ranked Results CSV",
-        data=ranked_csv,
-        file_name="ml_repo_intelligence_results.csv",
-        mime="text/csv",
-    )
+    if st.button("Unlock Premium Report ($9)"):
+        if user_email.strip() == "":
+            st.warning("Please enter your email.")
+        else:
+            st.session_state.premium_unlocked = True
+            st.session_state.premium_email = user_email.strip()
 
-    family_csv = family_summary_df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download Family Summary CSV",
-        data=family_csv,
-        file_name="ml_repo_family_summary.csv",
-        mime="text/csv",
-    )
+            file_path = "ml_report.pdf"
+            generate_pdf(st.session_state.results, st.session_state.last_query, file_path)
+            st.session_state.pdf_ready = True
+            st.session_state.pdf_file_path = file_path
 
-    domain_csv = domain_summary_df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download Domain Summary CSV",
-        data=domain_csv,
-        file_name="ml_repo_domain_summary.csv",
-        mime="text/csv",
-    )
+            st.success("Premium report unlocked and generated successfully.")
+
+    if st.session_state.premium_unlocked:
+        st.success(f"Premium unlocked for: {st.session_state.premium_email}")
+
+        if st.session_state.pdf_ready and st.session_state.pdf_file_path and os.path.exists(st.session_state.pdf_file_path):
+            with open(st.session_state.pdf_file_path, "rb") as f:
+                st.download_button(
+                    label="📥 Download Premium PDF Report",
+                    data=f,
+                    file_name="ML_Report.pdf",
+                    mime="application/pdf",
+                )
+
+        report_bytes = report_text.encode("utf-8")
+        st.download_button(
+            label="Download Premium Report (Markdown)",
+            data=report_bytes,
+            file_name=f"ml_repo_intelligence_report_{st.session_state.last_query.replace(' ', '_')}.md",
+            mime="text/markdown",
+        )
+
+        ranked_csv = show_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Ranked Results CSV",
+            data=ranked_csv,
+            file_name="ml_repo_intelligence_results.csv",
+            mime="text/csv",
+        )
+
+        family_csv = family_summary_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Family Summary CSV",
+            data=family_csv,
+            file_name="ml_repo_family_summary.csv",
+            mime="text/csv",
+        )
+
+        domain_csv = domain_summary_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Domain Summary CSV",
+            data=domain_csv,
+            file_name="ml_repo_domain_summary.csv",
+            mime="text/csv",
+        )
+    else:
+        st.warning("Premium downloads are locked until you unlock the report.")
 
 
 # -----------------------------------------------------------------------------
-# Basic download
+# Basic free download
 # -----------------------------------------------------------------------------
 
-st.subheader("Quick Download")
+st.subheader("Quick Free Download")
 csv_data = show_df.to_csv(index=False).encode("utf-8")
 st.download_button(
-    label="Download CSV",
+    label="Download Free CSV",
     data=csv_data,
     file_name="ml_repo_intelligence_results.csv",
     mime="text/csv",
