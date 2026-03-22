@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from urllib.parse import quote_plus
 
 import pandas as pd
 import streamlit as st
@@ -10,6 +11,13 @@ from report_generator import generate_pdf
 
 
 st.set_page_config(page_title="ModelRank AI", layout="wide")
+
+# -----------------------------------------------------------------------------
+# Config
+# -----------------------------------------------------------------------------
+
+CONTACT_EMAIL = "faisalk.baig@gmail.com"
+
 
 # -----------------------------------------------------------------------------
 # Header / branding
@@ -68,14 +76,12 @@ if "last_query" not in st.session_state:
     st.session_state.last_query = ""
 if "last_mode" not in st.session_state:
     st.session_state.last_mode = ""
+if "premium_email" not in st.session_state:
+    st.session_state.premium_email = ""
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 if "pdf_file_path" not in st.session_state:
     st.session_state.pdf_file_path = ""
-if "premium_unlocked" not in st.session_state:
-    st.session_state.premium_unlocked = False
-if "premium_email" not in st.session_state:
-    st.session_state.premium_email = ""
 
 
 # -----------------------------------------------------------------------------
@@ -97,7 +103,6 @@ if st.button("Run Analysis", type="primary"):
         st.session_state.last_mode = mode
         st.session_state.pdf_ready = False
         st.session_state.pdf_file_path = ""
-        st.session_state.premium_unlocked = False
 
 df = st.session_state.results
 
@@ -283,6 +288,19 @@ def format_label(x):
     return "❌ Experimental"
 
 
+def build_mailto_link(contact_email: str, query_text: str, requester_email: str) -> str:
+    subject = f"Premium ML Report Request - {query_text}"
+    body = (
+        "Hi Faisal,%0D%0A%0D%0A"
+        f"I would like to request the premium report for:%0D%0A"
+        f"Query: {query_text}%0D%0A"
+        f"My email: {requester_email}%0D%0A%0D%0A"
+        "Please share pricing and next steps.%0D%0A%0D%0A"
+        "Thanks"
+    )
+    return f"mailto:{contact_email}?subject={quote_plus(subject)}&body={body}"
+
+
 # -----------------------------------------------------------------------------
 # KPI row
 # -----------------------------------------------------------------------------
@@ -393,21 +411,20 @@ for _, row in df.iterrows():
 
 st.subheader("📄 Premium Intelligence Report")
 st.info("""
-🔐 Premium Report includes:
+Get a premium report including:
 
-- Top ranked models
-- Production-readiness analysis
+- Top production-ready models
+- Models to avoid costly mistakes
 - Family and domain summaries
 - Actionable recommendations
-
-Enter your email to unlock the premium report experience.
+- PDF and markdown deliverables
 """)
 
 family_summary_df = make_family_summary(df)
 domain_summary_df = make_domain_summary(df)
 report_text = build_full_report(df, st.session_state.last_query, st.session_state.last_mode)
 
-tab1, tab2, tab3 = st.tabs(["Executive Summary", "Summary Tables", "Premium Downloads"])
+tab1, tab2, tab3 = st.tabs(["Executive Summary", "Summary Tables", "Request Premium"])
 
 with tab1:
     st.markdown(build_executive_summary(df, st.session_state.last_query, st.session_state.last_mode))
@@ -430,73 +447,76 @@ with tab2:
             st.dataframe(domain_summary_df, use_container_width=True, hide_index=True)
 
 with tab3:
-    st.markdown("### Unlock Premium Report")
+    st.markdown("### Request Premium Report")
 
-    user_email = st.text_input(
-        "Enter your email to unlock premium report",
+    st.write("""
+Get a full premium report including:
+
+- Top production-ready models
+- Models to avoid
+- Architecture insights (PatchTST, Autoformer, etc.)
+- Deployment-readiness analysis
+
+Delivered manually after request.
+""")
+
+    email_value = st.text_input(
+        "Enter your email",
         value=st.session_state.premium_email,
         key="premium_email_input",
+        placeholder="you@example.com",
     )
 
-    if st.button("Unlock Premium Report ($9)"):
-        if user_email.strip() == "":
+    if email_value.strip():
+        st.session_state.premium_email = email_value.strip()
+
+    if st.button("📩 Request Premium Report"):
+        if not st.session_state.premium_email:
             st.warning("Please enter your email.")
         else:
-            st.session_state.premium_unlocked = True
-            st.session_state.premium_email = user_email.strip()
+            st.success("Click below to send your request email.")
 
-            file_path = "ml_report.pdf"
-            generate_pdf(st.session_state.results, st.session_state.last_query, file_path)
-            st.session_state.pdf_ready = True
-            st.session_state.pdf_file_path = file_path
-
-            st.success("Premium report unlocked and generated successfully.")
-
-    if st.session_state.premium_unlocked:
-        st.success(f"Premium unlocked for: {st.session_state.premium_email}")
-
-        if st.session_state.pdf_ready and st.session_state.pdf_file_path and os.path.exists(st.session_state.pdf_file_path):
-            with open(st.session_state.pdf_file_path, "rb") as f:
-                st.download_button(
-                    label="📥 Download Premium PDF Report",
-                    data=f,
-                    file_name="ML_Report.pdf",
-                    mime="application/pdf",
-                )
-
-        report_bytes = report_text.encode("utf-8")
-        st.download_button(
-            label="Download Premium Report (Markdown)",
-            data=report_bytes,
-            file_name=f"ml_repo_intelligence_report_{st.session_state.last_query.replace(' ', '_')}.md",
-            mime="text/markdown",
+    if st.session_state.premium_email:
+        mailto_link = build_mailto_link(
+            CONTACT_EMAIL,
+            st.session_state.last_query,
+            st.session_state.premium_email,
         )
+        st.markdown(f"[📧 Send Email Request]({mailto_link})")
 
-        ranked_csv = show_df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Ranked Results CSV",
-            data=ranked_csv,
-            file_name="ml_repo_intelligence_results.csv",
-            mime="text/csv",
-        )
+    st.markdown("### Preview Files")
 
-        family_csv = family_summary_df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Family Summary CSV",
-            data=family_csv,
-            file_name="ml_repo_family_summary.csv",
-            mime="text/csv",
-        )
+    report_bytes = report_text.encode("utf-8")
+    st.download_button(
+        label="Download Preview Report (Markdown)",
+        data=report_bytes,
+        file_name=f"ml_repo_intelligence_preview_{st.session_state.last_query.replace(' ', '_')}.md",
+        mime="text/markdown",
+    )
 
-        domain_csv = domain_summary_df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Download Domain Summary CSV",
-            data=domain_csv,
-            file_name="ml_repo_domain_summary.csv",
-            mime="text/csv",
-        )
-    else:
-        st.warning("Premium downloads are locked until you unlock the report.")
+    if st.button("Generate Internal PDF Preview"):
+        file_path = "ml_report_preview.pdf"
+        generate_pdf(st.session_state.results, st.session_state.last_query, file_path)
+        st.session_state.pdf_ready = True
+        st.session_state.pdf_file_path = file_path
+        st.success("Internal premium PDF preview generated.")
+
+    if st.session_state.pdf_ready and st.session_state.pdf_file_path and os.path.exists(st.session_state.pdf_file_path):
+        with open(st.session_state.pdf_file_path, "rb") as f:
+            st.download_button(
+                label="Download Internal PDF Preview",
+                data=f,
+                file_name="ML_Report_Preview.pdf",
+                mime="application/pdf",
+            )
+
+    ranked_csv = show_df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Ranked Results CSV",
+        data=ranked_csv,
+        file_name="ml_repo_intelligence_results.csv",
+        mime="text/csv",
+    )
 
 
 # -----------------------------------------------------------------------------
