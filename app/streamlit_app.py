@@ -305,16 +305,22 @@ def build_mailto_link(contact_email: str, query_text: str, requester_email: str)
 # KPI row
 # -----------------------------------------------------------------------------
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Results", len(df))
-c2.metric("Production-ready", int((df["product_label"] == "Production-ready").sum()))
-c3.metric("Research-grade", int((df["product_label"] == "Research-grade").sum()))
-c4.metric("Experimental", int((df["product_label"] == "Experimental").sum()))
-
-st.markdown("### 🧠 What should you do?")
-
 prod_count = len(df[df["product_label"] == "Production-ready"])
 research_count = len(df[df["product_label"] == "Research-grade"])
+experimental_count = len(df[df["product_label"] == "Experimental"])
+
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Results", len(df))
+c2.metric("Production-ready", prod_count)
+c3.metric("Research-grade", research_count)
+c4.metric("Experimental", experimental_count)
+
+st.success(
+    f"👉 We analyzed {len(df)} repos and found "
+    f"{prod_count} production-ready models you can use immediately."
+)
+
+st.markdown("### 🧠 What should you do?")
 
 if prod_count > 0:
     st.success(f"Use top {prod_count} models as production candidates.")
@@ -323,6 +329,29 @@ else:
 
 if research_count > 0:
     st.info(f"{research_count} models require validation before use.")
+
+st.markdown("---")
+
+
+# -----------------------------------------------------------------------------
+# Top 3 shortcut
+# -----------------------------------------------------------------------------
+
+st.markdown("## 🏆 Top 3 Models You Should Review First")
+
+top3 = df.head(3).copy()
+top_cols = st.columns(3)
+
+for col, (_, row) in zip(top_cols, top3.iterrows()):
+    with col:
+        st.container(border=True)
+        st.markdown(f"### {row.get('hf_model_id', '')}")
+        st.write(f"**Type:** {row.get('product_label', '')}")
+        st.write(f"**Score:** {row.get('core_case_score', '')}")
+        st.write(f"**Recommendation:** {row.get('recommendation', '')}")
+        st.write(f"**Family:** {row.get('family_cluster', '')}")
+
+st.markdown("---")
 
 
 # -----------------------------------------------------------------------------
@@ -367,6 +396,8 @@ if "Type" in show_df.columns:
 
 st.dataframe(show_df, use_container_width=True, hide_index=True)
 
+st.markdown("---")
+
 
 # -----------------------------------------------------------------------------
 # Repo cards
@@ -392,6 +423,13 @@ for _, row in df.iterrows():
             st.write(f"**Artifacts:** {row.get('artifact_signature', '')}")
             st.write(f"**Evidence:** {row.get('evidence_terms', '')}")
 
+            st.write("**Why this is recommended:**")
+            st.write(
+                f"- Artifact support: {row.get('artifact_signature', '')}\n"
+                f"- Transition signal: {row.get('transition_signal_type', '')}\n"
+                f"- Repo style: {row.get('repo_style', '')}"
+            )
+
             hf_url = row.get("hf_url", "")
             github_url = row.get("github_url", "")
             if hf_url:
@@ -404,20 +442,21 @@ for _, row in df.iterrows():
             st.metric("Screen", int(row.get("screen_total_score", 0) or 0))
             st.metric("Files", int(row.get("file_count", 0) or 0))
 
+st.markdown("---")
+
 
 # -----------------------------------------------------------------------------
 # Premium report export
 # -----------------------------------------------------------------------------
 
 st.subheader("📄 Premium Intelligence Report")
-st.info("""
-Get a premium report including:
+st.warning("""
+⚠️ Most users choose the wrong models and waste weeks.
 
-- Top production-ready models
-- Models to avoid costly mistakes
-- Family and domain summaries
-- Actionable recommendations
-- PDF and markdown deliverables
+This premium report shows:
+- What to use
+- What to avoid
+- Why
 """)
 
 family_summary_df = make_family_summary(df)
@@ -517,6 +556,8 @@ Delivered manually after request.
         file_name="ml_repo_intelligence_results.csv",
         mime="text/csv",
     )
+
+st.markdown("---")
 
 
 # -----------------------------------------------------------------------------
